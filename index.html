@@ -3,64 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Página Web</title>
+    <title>Afentra</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey"></script>
+    
+    <style>
+        .custom-range {
+            width: 200px; /* Adjusted width */
+        }
+        .range-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .d-flex.justify-content-between {
+            justify-content: space-around; /* Adjust spacing for wider sliders */
+        }
+    </style>
 </head>
 <body>
-    <h1>Hola, Mundoe!</h1>
-    <p>Esta es una pequeña página web.</p>
+    <div class="container">
+        <h1 class="mt-5">Afentra</h1>
+        <p>AET.L</p>
 
-    <canvas id="myChart" width="400" height="400"></canvas>
-    <p>Adjust the value:</p>
-    <input type="range" min="0" max="100" value="50" id="slider" oninput="updateChart()">
-    <span id="sliderValue">50</span>
+        <div class="d-flex justify-content-between mb-4">
+            <div class="range-container text-center">
+                <input type="range" class="custom-range" id="brent" min="10" max="150" step="0.01" value="81" oninput="updateLabel('brent', 'Brent')">
+                <small id="brentValue">Brent: 81.00</small>
+            </div>
+            <div class="range-container text-center">
+                <input type="range" class="custom-range" id="production" min="3000" max="10000" value="6600" oninput="updateLabel('production', 'Production')">
+                <small id="productionValue">Production: 6600</small>
+            </div>
+            <div class="range-container text-center">
+                <input type="range" class="custom-range" id="opex" min="10" max="100" step="0.01" value="27" oninput="updateLabel('opex', 'OPEX')">
+                <small id="opexValue">OPEX: 27.00</small>
+            </div>
+            <div class="range-container text-center">
+                <input type="range" class="custom-range" id="capex" min="0" max="100" step="0.01" value="22.5" oninput="updateLabel('capex', 'CAPEX')">
+                <small id="capexValue">CAPEX: 22.50</small>
+            </div>
+        </div>
 
+        <div class="card mt-4">
+            <div class="card-body">
+                <canvas id="mySankeyChart" width="800" height="400"></canvas>
+            </div>
+        </div>
+    </div>
     <script>
-        var ctx = document.getElementById('myChart').getContext('2d');
-        var myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-                datasets: [{
-                    label: '# of Votes',
-                    data: [12, 19, 3, 5, 2, 3],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(255, 206, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(255, 159, 64, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
+        // Declare initial values
+        let brent = 81;
+        let production = 6600;
+        let opex_base = 27;
+        let capex = 22.5;
+        let profit_oil_gov = 29;
+        let profit_oil_tax_pit = 10;
+        let financial_cost = 4;
+        let g_and_a = 5;
+        let sankeyChart;
+
+        function updateLabel(rangeId, label) {
+            var rangeValue = document.getElementById(rangeId).value;
+            if (rangeId === 'brent' || rangeId === 'opex' || rangeId === 'capex') {
+                rangeValue = parseFloat(rangeValue).toFixed(2);
             }
-        });
+            document.getElementById(rangeId + 'Value').textContent = label + ': ' + rangeValue;
+
+            // Update the variables with the new values
+            if (rangeId === 'brent') {
+                brent = rangeValue;
+            } else if (rangeId === 'production') {
+                production = rangeValue;
+            } else if (rangeId === 'opex') {
+                opex_base = rangeValue;
+            } else if (rangeId === 'capex') {
+                capex = rangeValue;
+            }
+
+            // Update the chart with the new values
+            updateChart();
+        }
+
+        function calculateValues(production, brent, opex_base, capex, profit_oil_gov, profit_oil_tax_pit, financial_cost, g_and_a) {
+            let anual_production = production * 365;
+            let oil_income = Math.round(anual_production * brent * 100) / 100;
+            let anual_opex = Math.round(opex_base * anual_production);
+            let op_income = Math.round(oil_income - anual_opex);
+
+            let oil_earnings = Math.round(op_income - capex*1000000 - profit_oil_gov*1000000 - profit_oil_tax_pit*1000000 - financial_cost*1000000 - g_and_a*1000000);
+
+            let result = {
+                oil_income: Math.round(oil_income / 1000000),
+                anual_opex: Math.round(anual_opex / 1000000),
+                op_income: Math.round(op_income / 1000000),
+                profit_oil_gov: Math.round(profit_oil_gov),
+                profit_oil_tax_pit: Math.round(profit_oil_tax_pit),
+                oil_earnings: Math.round(oil_earnings / 1000000),
+                capex: Math.round(capex),
+                g_and_a: Math.round(g_and_a),
+                financial_cost: Math.round(financial_cost)
+            };
+
+            return result;
+        }
+
+        function createSankeyChart(ctx, values) {
+            const data = {
+                labels: [
+                    `Production: ${production} bbld @ $${brent} (Brent): M$${values.oil_income}`, 
+                    `Op. Income: M$${values.op_income}`, 
+                    `OPEX: $${opex_base}/bbl: M$${values.anual_opex}`, 
+                    `Free cash flow: M$${values.oil_earnings}`, 
+                    `Royalty gov: M$${values.profit_oil_gov}`, 
+                    `Capex M$${values.capex}`, 
+                    `Petroleum tax: M$${values.profit_oil_tax_pit}`, 
+                    `G and A M$${values.g_and_a}`, 
+                    `Financial cost M$${values.financial_cost}`
+                ],
+                datasets: [{
+                    label: 'Sankey',
+                    data: [
+                        { from: `Production: ${production} bbld @ $${brent} (Brent): M$${values.oil_income}`, to: `OPEX: $${opex_base}/bbl: M$${values.anual_opex}`, flow: values.anual_opex },
+                        { from: `Production: ${production} bbld @ $${brent} (Brent): M$${values.oil_income}`, to: `Op. Income: M$${values.op_income}`, flow: values.op_income },
+                        { from: `Op. Income: M$${values.op_income}`, to: `Free cash flow: M$${values.oil_earnings}`, flow: values.oil_earnings },
+                        { from: `Op. Income: M$${values.op_income}`, to: `Royalty gov: M$${values.profit_oil_gov}`, flow: values.profit_oil_gov },
+                        { from: `Op. Income: M$${values.op_income}`, to: `Capex M$${values.capex}`, flow: values.capex },
+                        { from: `Op. Income: M$${values.op_income}`, to: `Petroleum tax: M$${values.profit_oil_tax_pit}`, flow: values.profit_oil_tax_pit },
+                        { from: `Op. Income: M$${values.op_income}`, to: `G and A M$${values.g_and_a}`, flow: values.g_and_a },
+                        { from: `Op. Income: M$${values.op_income}`, to: `Financial cost M$${values.financial_cost}`, flow: values.financial_cost }
+                    ],
+                    colorFrom: (context) => context.dataset.data[context.dataIndex].from.includes('Op. Income') ? 'blue' : 'grey',
+                    colorTo: (context) => {
+                        const toLabel = context.dataset.data[context.dataIndex].to;
+                        if (toLabel.includes('Free cash flow')) return 'green';
+                        if (toLabel.includes('OPEX') || toLabel.includes('Royalty gov') || toLabel.includes('Capex') || toLabel.includes('Petroleum tax') || toLabel.includes('G and A') || toLabel.includes('Financial cost')) return 'red';
+                        return 'grey';
+                    },
+                    colorMode: 'gradient',
+                    borderWidth: 2
+                }]
+            };
+
+            const options = {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: false
+                    }
+                },
+                animation: false
+            };
+
+            if (sankeyChart) {
+                sankeyChart.data = data;
+                sankeyChart.update();
+            } else {
+                sankeyChart = new Chart(ctx, {
+                    type: 'sankey',
+                    data: data,
+                    options: options
+                });
+            }
+        }
 
         function updateChart() {
-            var slider = document.getElementById('slider');
-            var value = slider.value;
-            document.getElementById('sliderValue').textContent = value;
-
-            // Update chart data based on slider value
-            myChart.data.datasets[0].data = [value, 19, 3, 5, 2, 3];
-            myChart.update();
+            const values = calculateValues(production, brent, opex_base, capex, profit_oil_gov, profit_oil_tax_pit, financial_cost, g_and_a);
+            createSankeyChart(ctx, values);
         }
+
+        const ctx = document.getElementById('mySankeyChart').getContext('2d');
+        const initialValues = calculateValues(production, brent, opex_base, capex, profit_oil_gov, profit_oil_tax_pit, financial_cost, g_and_a);
+        createSankeyChart(ctx, initialValues);
     </script>
+    <!-- Bootstrap JS, Popper.js, and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
