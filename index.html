@@ -11,6 +11,10 @@
     <p>Esta es una pequeña página web.</p>
 
     <canvas id="myChart" width="400" height="400"></canvas>
+    <p>Adjust the value:</p>
+    <input type="range" min="0" max="100" value="50" id="slider" oninput="updateChart()">
+    <span id="sliderValue">50</span>
+
     <script>
         var ctx = document.getElementById('myChart').getContext('2d');
         var myChart = new Chart(ctx, {
@@ -47,7 +51,16 @@
                 }
             }
         });
+
+        function updateChart() {
+            var slider = document.getElementById('slider');
+            var value = slider.value;
+            document.getElementById('sliderValue').textContent = value;
+
+            // Update chart data based on slider value
+            myChart.data.datasets[0].data = [value, 19, 3, 5, 2, 3];
+            myChart.update();
+        }
     </script>
 </body>
 </html>
-
